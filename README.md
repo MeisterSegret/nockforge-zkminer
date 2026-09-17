@@ -16,9 +16,9 @@ Both are the same file — compare the sha256 against both places before you run
 it.
 
 ```bash
-curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.4.0.tar.gz
-sha256sum nockforge-zkminer-0.4.0.tar.gz     # must match SHA256SUMS on the release and on the site
-tar xzf nockforge-zkminer-0.4.0.tar.gz && cd nockforge-zkminer-0.4.0
+curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.4.1.tar.gz
+sha256sum nockforge-zkminer-0.4.1.tar.gz     # must match SHA256SUMS on the release and on the site
+tar xzf nockforge-zkminer-0.4.1.tar.gz && cd nockforge-zkminer-0.4.1
 NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
 ```
 
@@ -32,6 +32,9 @@ miner never sees a private key.
 - NVIDIA driver R580 or newer. No CUDA toolkit.
 - Linux x86_64, glibc 2.38+ (Ubuntu 24.04). Windows through WSL2.
 - 1 free CPU core, 4 GB host RAM.
+- On a multi-GPU box `./run.sh` starts one miner process per card by default, each
+  with its own rig name (`rig1-gpu0`, `rig1-gpu1`, …); `NOCKPOOL_GPUS=0,2` limits it,
+  `CUDA_VISIBLE_DEVICES=1` keeps the classic single-card run.
 
 Everything else — pool vs. solo, payouts, tuning, troubleshooting — is in the
 `README.txt` that ships inside the tarball.

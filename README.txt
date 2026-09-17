@@ -1,11 +1,11 @@
-nockforge zkminer 0.4.0 -- GPU miner for Nockchain (proof-version 5, Anthropos)
+nockforge zkminer 0.4.1 -- GPU miner for Nockchain (proof-version 5, Anthropos)
 ================================================================================
 Linux x86_64, NVIDIA.
 
 1. QUICK START
 --------------
-    sha256sum nockforge-zkminer-0.4.0.tar.gz     # compare with the site
-    tar xzf nockforge-zkminer-0.4.0.tar.gz && cd nockforge-zkminer-0.4.0
+    sha256sum nockforge-zkminer-0.4.1.tar.gz     # compare with the site
+    tar xzf nockforge-zkminer-0.4.1.tar.gz && cd nockforge-zkminer-0.4.1
     NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
 
 Pool endpoint: pool.nockforge.tech:27016, QUIC over UDP, outbound only --
@@ -57,6 +57,13 @@ Driver  NVIDIA R580 or newer. No CUDA toolkit needed: libcuda.so.1 is the only
 OS      Linux x86_64, glibc 2.38 or newer (Ubuntu 24.04). Windows only through
         WSL2 on the Windows NVIDIA driver -- no Linux GPU driver inside WSL.
 
+Several GPUs: one miner process drives one card, and run.sh starts one process
+per card by itself when nvidia-smi lists more than one. Each card mines under
+its own rig name (rig1 -> rig1-gpu0, rig1-gpu1, ...; a -solo suffix stays at
+the end), reports its own model, and writes its own log next to run.sh. The
+terminal follows all logs; Ctrl-C stops every card. NOCKPOOL_GPUS=0,2 limits
+it to those indices, CUDA_VISIBLE_DEVICES=1 keeps the classic one-card run.
+
 5. WHAT IT LOOKS LIKE WHEN IT WORKS
 -----------------------------------
     quiver: authenticated, device accepted (linux / <your GPU>)
@@ -78,6 +85,8 @@ normal.
 ----------------
     NOCKPOOL_WALLET        (required)  your base58 payout address, and your login
     NOCKPOOL_RIG           [rig1]      worker label; -solo selects solo mode
+    NOCKPOOL_GPUS          [all]       GPU indices to mine on, e.g. 0,2 -- one
+                                       process per card, see section 4
     NOCKPOOL_SERVER        [pool.nockforge.tech:27016]  host:port of the pool
     NOCKPOOL_INSECURE      [0]         1 disables certificate checking
     ZKMINER_V5_KERNEL      [miner.jam shipped here]  the Nock prover kernel

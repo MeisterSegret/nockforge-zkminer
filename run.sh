@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nockforge zkminer 0.4.0 — launcher
+# nockforge zkminer 0.4.1 — launcher
 #
 # Usage:  NOCKPOOL_WALLET=<your payout address> ./run.sh
 #
@@ -118,7 +118,7 @@ fi
 note "driver $DRV"
 
 # ---------------------------------------------------------------- 5. kernel images
-# 0.4.0 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
+# 0.4.1 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
 # 8.6, 8.9, 9.0, 10.0 and 12.0 (Ampere and newer) inside the binary. Nothing is compiled at startup,
 # so libnvrtc.so.13 -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
 # driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose
@@ -130,8 +130,80 @@ note "driver $DRV"
 # ZKMINER_V5_COMPLETERS: how many Nock kernels stay booted to prove a block-class
 # hit (one is plenty; each takes ~2 s to boot and one CPU core for ~30 s per proof).
 export ZKMINER_V5_COMPLETERS="${ZKMINER_V5_COMPLETERS:-1}"
-export ZKMINER_GPU_MODEL="${ZKMINER_GPU_MODEL:-$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)}"
+# The model name the pool shows for this rig. nvidia-smi ignores
+# CUDA_VISIBLE_DEVICES, so on a multi-GPU box "head -1" would always name card 0;
+# when the process is pinned to one index, ask nvidia-smi for that card.
+gpu_model() {
+  case "${CUDA_VISIBLE_DEVICES:-}" in
+    ''|*[!0-9]*) nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 ;;
+    *)           nvidia-smi -i "$CUDA_VISIBLE_DEVICES" --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 ;;
+  esac
+}
+export ZKMINER_GPU_MODEL="${ZKMINER_GPU_MODEL:-$(gpu_model)}"
 export RUST_LOG="${RUST_LOG:-info}"
+
+# ---------------------------------------------------------------- 7. several GPUs
+# One miner process drives one GPU; that is by design, the per-card pipeline
+# already saturates the card. So on a box with more than one GPU this script
+# starts one process per card BY DEFAULT -- nobody has to write the loop:
+#
+#     ./run.sh                          every GPU nvidia-smi lists (default)
+#     NOCKPOOL_GPUS=0,2,3 ./run.sh      only these indices
+#     NOCKPOOL_GPUS=1 ./run.sh          one card, and the pool shows its model
+#     CUDA_VISIBLE_DEVICES=1 ./run.sh   the classic way: one process, one card
+#
+# Each child gets CUDA_VISIBLE_DEVICES=<i>, its own rig name so the pool lists
+# the cards separately (rig1 -> rig1-gpu0, rig1-gpu1, ...), its own model name,
+# and its own log next to this script. A "-solo" suffix stays at the END of the
+# name, because that suffix is what selects solo mining (section 2 of
+# README.txt). This terminal then follows all logs; Ctrl-C stops every card.
+gpu_count() { nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | grep -c .; }
+case "${NOCKPOOL_GPUS:-}" in
+  none) GPU_LIST="" ;;                             # a child: single-process path below
+  all)  GPU_LIST="$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | tr '\n' ' ')" ;;
+  '')   if [ -z "${CUDA_VISIBLE_DEVICES:-}" ] && [ "$(gpu_count)" -gt 1 ]; then
+          GPU_LIST="$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | tr '\n' ' ')"
+        else
+          GPU_LIST=""                              # one card, or pinned by hand
+        fi ;;
+  *)    GPU_LIST="${NOCKPOOL_GPUS//,/ }"
+        for i in $GPU_LIST; do
+          case "$i" in *[!0-9]*) die "NOCKPOOL_GPUS: '$i' is not a GPU index (use e.g. 0,1,3 or all)";; esac
+        done ;;
+esac
+
+if [ -n "${GPU_LIST// /}" ]; then
+  PIDS=""; LOGS=""
+  for i in $GPU_LIST; do
+    case "$NOCKPOOL_RIG" in
+      solo)     rig="gpu$i-solo" ;;
+      *-solo)   rig="${NOCKPOOL_RIG%-solo}-gpu$i-solo" ;;
+      *.solo)   rig="${NOCKPOOL_RIG%.solo}-gpu$i.solo" ;;
+      *)        rig="$NOCKPOOL_RIG-gpu$i" ;;
+    esac
+    model="$(nvidia-smi -i "$i" --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+    [ -n "$model" ] || die "GPU index $i not found (nvidia-smi -L lists what you have)"
+    log="$HERE/$rig.log"
+    : >> "$log"
+    # The child runs this same script with NOCKPOOL_GPUS=none, so it takes the
+    # single-process path below with everything above already checked.
+    CUDA_VISIBLE_DEVICES="$i" NOCKPOOL_RIG="$rig" ZKMINER_GPU_MODEL="$model" NOCKPOOL_GPUS=none \
+      nohup "$HERE/run.sh" "$@" >> "$log" 2>&1 &
+    PIDS="$PIDS $!"; LOGS="$LOGS $log"
+    note "GPU $i ($model) -> rig $rig, pid $!, log $log"
+  done
+  note "following all logs -- watch for 'SHARE ACCEPTED'. Ctrl-C stops every card."
+  echo
+  # shellcheck disable=SC2086
+  tail -n 0 -F $LOGS &
+  TAIL_PID=$!
+  # shellcheck disable=SC2064
+  trap "kill $PIDS $TAIL_PID 2>/dev/null; exit 130" INT TERM
+  # shellcheck disable=SC2086
+  wait $PIDS
+  kill "$TAIL_PID" 2>/dev/null
+  exit 0
+fi
 
 note "pool $NOCKPOOL_SERVER  rig $NOCKPOOL_RIG"
 note "starting -- watch for 'SHARE ACCEPTED'. Ctrl-C to stop."
