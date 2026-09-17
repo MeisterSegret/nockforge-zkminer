@@ -1,11 +1,11 @@
-nockforge zkminer 0.4.1 -- GPU miner for Nockchain (proof-version 5, Anthropos)
+nockforge zkminer 0.5.0 -- GPU miner for Nockchain (proof-version 5, Anthropos)
 ================================================================================
 Linux x86_64, NVIDIA.
 
 1. QUICK START
 --------------
-    sha256sum nockforge-zkminer-0.4.1.tar.gz     # compare with the site
-    tar xzf nockforge-zkminer-0.4.1.tar.gz && cd nockforge-zkminer-0.4.1
+    sha256sum nockforge-zkminer-0.5.0.tar.gz     # compare with the site
+    tar xzf nockforge-zkminer-0.5.0.tar.gz && cd nockforge-zkminer-0.5.0
     NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
 
 Pool endpoint: pool.nockforge.tech:27016, QUIC over UDP, outbound only --
@@ -47,7 +47,7 @@ GPU     NVIDIA, Ampere or newer. Precompiled kernel images ship for compute
         capability 8.0, 8.6, 8.9, 9.0, 10.0 and 12.0 -- Ampere, Ada, Hopper,
         Blackwell; a card outside that list is refused at startup (the grind
         needs the int8 tensor-core instruction of sm_80+, so Turing is out). Measured
-        only on the RTX 5090 (62 M nonces/s at a 540 W board limit); other
+        only on the RTX 5090 (75 M nonces/s at a 600 W board limit); other
         cards start but are untested and slower.
 VRAM    Under 1 GB.
 CPU     One free core for the block prover (~30 s per block-class hit).
@@ -68,7 +68,7 @@ it to those indices, CUDA_VISIBLE_DEVICES=1 keeps the classic one-card run.
 -----------------------------------
     quiver: authenticated, device accepted (linux / <your GPU>)
     job 1 commit 17b1f84d1213f667 weight 2.083e8 nonces per share, 2.083e13 per block, epoch 0
-    LOCAL 61923820 cand/s (61.92 M nonces/s) | 60s 61.65 M/s | GPU 71 C 540 W | shares 189 accepted 0 rejected | hits 189 | ...
+    LOCAL 74728152 cand/s (74.73 M nonces/s) | 60s 74.75 M/s | GPU 76 C 600 W | shares 46 accepted 0 rejected | hits 46 | ...
     HIT: job 3 nonce[0]=13781368888098607096 share 745 bytes -> pool
     SHARE ACCEPTED: accepted
 

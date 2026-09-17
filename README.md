@@ -16,9 +16,9 @@ Both are the same file — compare the sha256 against both places before you run
 it.
 
 ```bash
-curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.4.1.tar.gz
-sha256sum nockforge-zkminer-0.4.1.tar.gz     # must match SHA256SUMS on the release and on the site
-tar xzf nockforge-zkminer-0.4.1.tar.gz && cd nockforge-zkminer-0.4.1
+curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.5.0.tar.gz
+sha256sum nockforge-zkminer-0.5.0.tar.gz     # must match SHA256SUMS on the release and on the site
+tar xzf nockforge-zkminer-0.5.0.tar.gz && cd nockforge-zkminer-0.5.0
 NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
 ```
 
@@ -28,7 +28,7 @@ miner never sees a private key.
 ## What you need
 
 - NVIDIA GPU, compute capability 8.0 … 12.0 (Ampere through Blackwell), under
-  1 GB VRAM. Verified on the RTX 5090: 61.9 M nonces/s at 540 W.
+  1 GB VRAM. Verified on the RTX 5090: 74.7 M nonces/s at 600 W.
 - NVIDIA driver R580 or newer. No CUDA toolkit.
 - Linux x86_64, glibc 2.38+ (Ubuntu 24.04). Windows through WSL2.
 - 1 free CPU core, 4 GB host RAM.
