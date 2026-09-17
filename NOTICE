@@ -1,8 +1,8 @@
 NOTICE
 ======
 
-nockforge zkminer 0.3.3
-A GPU miner for Nockchain (proof-version 3).
+nockforge zkminer 0.4.0
+A GPU miner for Nockchain (proof-version 5, Anthropos).
 
 This package contains a closed-source binary. The source of
 `zkminer-miner` is not published. Everything below concerns the
@@ -60,10 +60,8 @@ No package in the graph is under GPL, LGPL or AGPL.
 3. MPL-2.0 -- source on request
 -------------------------------
 
-Three packages are under the Mozilla Public License 2.0:
+One package is under the Mozilla Public License 2.0:
 
-    fastrlp     0.3.1
-    fastrlp     0.4.0
     option-ext  0.2.0
 
 The MPL-2.0 is file-level copyleft. It expressly permits distributing the
@@ -71,15 +69,12 @@ result as a larger work under other terms and without source
 (section 3.3) -- but requires that the source of exactly those files
 remains available. The full text is included as LICENSE-MPL-2.0.
 
-These three packages are used unmodified. Their source is publicly
-available at:
+This package is used unmodified. Its source is publicly available at:
 
-    https://crates.io/crates/fastrlp
     https://crates.io/crates/option-ext
 
 and can be obtained directly through `cargo`:
 
-    cargo download fastrlp==0.4.0
     cargo download option-ext==0.2.0
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nockforge zkminer 0.3.3 — launcher
+# nockforge zkminer 0.4.0 — launcher
 #
 # Usage:  NOCKPOOL_WALLET=<your payout address> ./run.sh
 #
@@ -35,10 +35,10 @@ EOT
 fi
 
 # A wrong address is not caught by anything downstream: the pool answers a
-# malformed login with a dropped connection, so the miner would boot all four
-# completer kernels, spin up the GPU and then reconnect forever with
-# "auth read: connection lost" -- burning power and telling you nothing. Check
-# the shape here, before any of that happens.
+# malformed login with a dropped connection, so the miner would boot its
+# kernel, spin up the GPU and then reconnect forever with "auth read:
+# connection lost" -- burning power and telling you nothing. Check the shape
+# here, before any of that happens.
 #
 # base58 as Nockchain uses it: no 0, O, I or l. Real payout addresses are 55
 # characters; the range below is deliberately wider so a future format is not
@@ -72,7 +72,7 @@ export NOCKPOOL_SERVER="${NOCKPOOL_SERVER:-pool.nockforge.tech:27016}"
 export NOCKPOOL_RIG="${NOCKPOOL_RIG:-rig1}"
 
 # NOCKPOOL_INSECURE=1 turns OFF verification of the pool's TLS certificate.
-# The pool now serves a real Let's Encrypt certificate for pool.nockforge.tech,
+# The pool serves a real Let's Encrypt certificate for pool.nockforge.tech,
 # so the default is 0: verify, like any other TLS client. Setting it to 1
 # installs a verifier that returns "valid" for every certificate without
 # looking at it -- traffic stays encrypted, but anyone who can redirect your
@@ -97,11 +97,13 @@ case "$NOCKPOOL_SERVER" in
     fi ;;
 esac
 
-# ---------------------------------------------------------------- 3. kernels
-export ZKMINER_COMPLETE_KERNEL="${ZKMINER_COMPLETE_KERNEL:-$HERE/zkcomplete.jam}"
-export ZKMINER_SNAP_KERNEL="${ZKMINER_SNAP_KERNEL:-$HERE/zksnap.jam}"
-[ -f "$ZKMINER_COMPLETE_KERNEL" ] || die "missing $ZKMINER_COMPLETE_KERNEL (unpack the whole tarball)"
-[ -f "$ZKMINER_SNAP_KERNEL" ]     || die "missing $ZKMINER_SNAP_KERNEL (unpack the whole tarball)"
+# ---------------------------------------------------------------- 3. prover kernel
+# Since the Anthropos fork (proof-version 5) the GPU grinds nonces on its own;
+# the Nock kernel below is used only when a nonce meets the NETWORK target, to
+# build the full proof for that one block. It is the stock miner kernel of the
+# Nockchain 0.1.17 (Anthropos) release.
+export ZKMINER_V5_KERNEL="${ZKMINER_V5_KERNEL:-$HERE/miner.jam}"
+[ -f "$ZKMINER_V5_KERNEL" ] || die "missing $ZKMINER_V5_KERNEL (unpack the whole tarball)"
 
 # ---------------------------------------------------------------- 4. driver
 command -v nvidia-smi >/dev/null 2>&1 \
@@ -116,50 +118,18 @@ fi
 note "driver $DRV"
 
 # ---------------------------------------------------------------- 5. kernel images
-# 0.3.3 ships precompiled CUDA kernel images (cubins) for compute capabilities 7.5,
-# 8.0, 8.6, 8.9, 9.0, 10.0 and 12.0 inside the binary. Nothing is compiled at startup,
-# so libnvrtc.so.13 -- and with it the whole CUDA toolkit -- is no longer needed: the
-# NVIDIA driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose
+# 0.4.0 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
+# 8.6, 8.9, 9.0, 10.0 and 12.0 (Ampere and newer) inside the binary. Nothing is compiled at startup,
+# so libnvrtc.so.13 -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
+# driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose
 # compute capability is not in that list is refused by name at startup.
-
-# ---------------------------------------------------------------- 6. batch size
-# ZKMINER_MINER_B is the batch width, and it is what decides whether the miner
-# fits on your card: memory use grows roughly linearly with B on top of a fixed
-# base. The tiers below are chosen for the current memory layout and leave room
-# for a desktop compositor or a second process:
 #
-#       >= 23 GB VRAM  ->  B=768   (full batch)
-#       >= 15 GB VRAM  ->  B=512
-#       >= 11 GB VRAM  ->  B=384
-#       under that     ->  refused; the miner needs a 12 GB card
-#
-# Only the RTX 5090 is verified. On any other card these tiers are a starting
-# point, not a measurement -- if you hit an out-of-memory, lower B by hand.
-if [ -z "${ZKMINER_MINER_B:-}" ]; then
-  VRAM_MIB="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)"
-  VRAM_MIB="${VRAM_MIB//[!0-9]/}"
-  if   [ "${VRAM_MIB:-0}" -ge 23000 ]; then ZKMINER_MINER_B=768
-  elif [ "${VRAM_MIB:-0}" -ge 15000 ]; then ZKMINER_MINER_B=512
-  elif [ "${VRAM_MIB:-0}" -ge 11000 ]; then ZKMINER_MINER_B=384
-  else
-    die "this GPU reports ${VRAM_MIB:-0} MiB of VRAM; the miner needs a card with at least
-     12 GB. See README.txt section 3."
-  fi
-  export ZKMINER_MINER_B
-  note "GPU has ${VRAM_MIB} MiB -> ZKMINER_MINER_B=$ZKMINER_MINER_B (override by setting it yourself)"
-else
-  export ZKMINER_MINER_B
-  note "ZKMINER_MINER_B=$ZKMINER_MINER_B (from the environment)"
-  if [ "$ZKMINER_MINER_B" -gt 768 ] 2>/dev/null; then
-    note "  NOTE: nothing above B=768 has been verified. An out-of-memory"
-    note "  from a too-large batch shows up minutes into the run, not at startup."
-  fi
-fi
+# The grind needs well under 1 GB of VRAM; there is no batch size to pick any more.
 
-# ---------------------------------------------------------------- 7. tuning
-export ZKMINER_PIPE_STREAMS="${ZKMINER_PIPE_STREAMS:-2}"
-export ZKMINER_COMPLETERS="${ZKMINER_COMPLETERS:-4}"
-export ZKMINER_HIT_QUEUE="${ZKMINER_HIT_QUEUE:-8}"
+# ---------------------------------------------------------------- 6. tuning
+# ZKMINER_V5_COMPLETERS: how many Nock kernels stay booted to prove a block-class
+# hit (one is plenty; each takes ~2 s to boot and one CPU core for ~30 s per proof).
+export ZKMINER_V5_COMPLETERS="${ZKMINER_V5_COMPLETERS:-1}"
 export ZKMINER_GPU_MODEL="${ZKMINER_GPU_MODEL:-$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)}"
 export RUST_LOG="${RUST_LOG:-info}"
 
