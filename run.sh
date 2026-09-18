@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nockforge zkminer 0.5.0 — launcher
+# nockforge zkminer 0.5.1 — launcher
 #
 # Usage:  NOCKPOOL_WALLET=<your payout address> ./run.sh
 #
@@ -107,20 +107,32 @@ export ZKMINER_V5_KERNEL="${ZKMINER_V5_KERNEL:-$HERE/miner.jam}"
 
 # ---------------------------------------------------------------- 4. driver
 command -v nvidia-smi >/dev/null 2>&1 \
-  || die "nvidia-smi not found. An NVIDIA driver (R580 or newer, i.e. CUDA 13 capable) is required."
+  || die "nvidia-smi not found. An NVIDIA driver (R550 or newer; R570 or newer for Blackwell cards) is required."
 
 DRV="$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)"
 [ -n "$DRV" ] || die "nvidia-smi found no GPU. On Windows you must run this inside WSL2 with GPU support."
 DRV_MAJ="${DRV%%.*}"
-if [ "${DRV_MAJ:-0}" -lt 580 ] 2>/dev/null; then
-  die "driver $DRV is too old. This miner uses the CUDA 13.0 driver API; you need R580 or newer."
+if [ "${DRV_MAJ:-0}" -lt 550 ] 2>/dev/null; then
+  die "driver $DRV is too old. This miner uses the CUDA 12.4 driver API; you need R550 or newer (Blackwell cards: R570 or newer)."
 fi
 note "driver $DRV"
 
+# ---------------------------------------------------------------- 4b. forward-compat libcuda
+# CUDA container images carry a "forward compatibility" libcuda.so.1 under
+# /usr/local/cuda*/compat, and ldconfig lists it BEFORE the driver's own
+# library. It only works on datacenter GPUs; on a GeForce the context fails
+# with CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE (seen 18.09.2026 on a rented
+# RTX 4090, driver R550, CUDA 12.8 image). Put the driver's libcuda first.
+REAL_LIBCUDA="$(ldconfig -p 2>/dev/null | awk '/libcuda\.so\.1 /{print $NF}' | grep -v '/compat/' | head -1)"
+if [ -n "$REAL_LIBCUDA" ]; then
+  export LD_LIBRARY_PATH="$(dirname "$REAL_LIBCUDA")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  note "libcuda $REAL_LIBCUDA"
+fi
+
 # ---------------------------------------------------------------- 5. kernel images
-# 0.5.0 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
+# 0.5.1 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
 # 8.6, 8.9, 9.0, 10.0 and 12.0 (Ampere and newer) inside the binary. Nothing is compiled at startup,
-# so libnvrtc.so.13 -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
+# so libnvrtc -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
 # driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose
 # compute capability is not in that list is refused by name at startup.
 #

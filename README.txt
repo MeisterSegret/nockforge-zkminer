@@ -1,11 +1,11 @@
-nockforge zkminer 0.5.0 -- GPU miner for Nockchain (proof-version 5, Anthropos)
+nockforge zkminer 0.5.1 -- GPU miner for Nockchain (proof-version 5, Anthropos)
 ================================================================================
 Linux x86_64, NVIDIA.
 
 1. QUICK START
 --------------
-    sha256sum nockforge-zkminer-0.5.0.tar.gz     # compare with the site
-    tar xzf nockforge-zkminer-0.5.0.tar.gz && cd nockforge-zkminer-0.5.0
+    sha256sum nockforge-zkminer-0.5.1.tar.gz     # compare with the site
+    tar xzf nockforge-zkminer-0.5.1.tar.gz && cd nockforge-zkminer-0.5.1
     NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
 
 Pool endpoint: pool.nockforge.tech:27016, QUIC over UDP, outbound only --
@@ -52,7 +52,8 @@ GPU     NVIDIA, Ampere or newer. Precompiled kernel images ship for compute
 VRAM    Under 1 GB.
 CPU     One free core for the block prover (~30 s per block-class hit).
 RAM     4 GB host RAM. Under WSL2 that is RAM given to the guest.
-Driver  NVIDIA R580 or newer. No CUDA toolkit needed: libcuda.so.1 is the only
+Driver  NVIDIA R550 or newer (Blackwell cards: R570 or newer). No CUDA toolkit
+        needed: libcuda.so.1 is the only
         NVIDIA library the miner loads.
 OS      Linux x86_64, glibc 2.38 or newer (Ubuntu 24.04). Windows only through
         WSL2 on the Windows NVIDIA driver -- no Linux GPU driver inside WSL.
