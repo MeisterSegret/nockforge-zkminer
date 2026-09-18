@@ -1,11 +1,11 @@
-nockforge zkminer 0.5.2 -- GPU miner for Nockchain (proof-version 5, Anthropos)
+nockforge zkminer 0.5.3 -- GPU miner for Nockchain (proof-version 5, Anthropos)
 ================================================================================
 Linux x86_64, NVIDIA.
 
 1. QUICK START
 --------------
-    sha256sum nockforge-zkminer-0.5.2.tar.gz     # compare with the site
-    tar xzf nockforge-zkminer-0.5.2.tar.gz && cd nockforge-zkminer-0.5.2
+    sha256sum nockforge-zkminer-0.5.3.tar.gz     # compare with the site
+    tar xzf nockforge-zkminer-0.5.3.tar.gz && cd nockforge-zkminer-0.5.3
     NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
 
 Pool endpoint: pool.nockforge.tech:27016, QUIC over UDP, outbound only --

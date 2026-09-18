@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nockforge zkminer 0.5.2 — launcher
+# nockforge zkminer 0.5.3 — launcher
 #
 # Usage:  NOCKPOOL_WALLET=<your payout address> ./run.sh
 #
@@ -130,7 +130,7 @@ if [ -n "$REAL_LIBCUDA" ]; then
 fi
 
 # ---------------------------------------------------------------- 5. kernel images
-# 0.5.2 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
+# 0.5.3 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
 # 8.6, 8.9, 9.0, 10.0 and 12.0 (Ampere and newer) inside the binary. Nothing is compiled at startup,
 # so libnvrtc -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
 # driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose

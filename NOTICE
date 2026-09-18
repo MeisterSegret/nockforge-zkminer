@@ -1,7 +1,7 @@
 NOTICE
 ======
 
-nockforge zkminer 0.5.2
+nockforge zkminer 0.5.3
 A GPU miner for Nockchain (proof-version 5, Anthropos).
 
 This package contains a closed-source binary. The source of
