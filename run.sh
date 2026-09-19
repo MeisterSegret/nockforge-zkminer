@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nockforge zkminer 0.5.3 — launcher
+# nockforge zkminer 0.5.5 — launcher
 #
 # Usage:  NOCKPOOL_WALLET=<your payout address> ./run.sh
 #
@@ -130,7 +130,7 @@ if [ -n "$REAL_LIBCUDA" ]; then
 fi
 
 # ---------------------------------------------------------------- 5. kernel images
-# 0.5.3 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
+# 0.5.5 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
 # 8.6, 8.9, 9.0, 10.0 and 12.0 (Ampere and newer) inside the binary. Nothing is compiled at startup,
 # so libnvrtc -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
 # driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose
@@ -142,6 +142,18 @@ fi
 # ZKMINER_V5_COMPLETERS: how many Nock kernels stay booted to prove a block-class
 # hit (one is plenty; each takes ~2 s to boot and one CPU core for ~30 s per proof).
 export ZKMINER_V5_COMPLETERS="${ZKMINER_V5_COMPLETERS:-1}"
+# The native block path (M108). With these two set the completer proves a block
+# in about 0.9 s; without them it falls back to the Nock kernel and needs 8.9 s.
+# That fallback is quiet -- the completer says so once at startup and then never
+# again -- so the switches default to ON here rather than being opt-in.
+#
+# Cost: a few seconds at startup. The completer primes its caches and proves a
+# test puzzle twice, to check the path works AND is fast (measured 2.9 s in total
+# on an RTX 5090), long before the first block. If the check fails, or the warm proof
+# comes out slower than ZKMINER_NATIVE_MAX_MS (default 2500), the native path
+# disables itself and the kernel takes over: slower, but no block is lost.
+export ZKMINER_OBJ5_GPU="${ZKMINER_OBJ5_GPU:-3}"
+export ZKMINER_OBJ8_GPU="${ZKMINER_OBJ8_GPU:-3}"
 # The model name the pool shows for this rig. nvidia-smi ignores
 # CUDA_VISIBLE_DEVICES, so on a multi-GPU box "head -1" would always name card 0;
 # when the process is pinned to one index, ask nvidia-smi for that card.
