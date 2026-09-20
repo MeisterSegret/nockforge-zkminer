@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# nockforge zkminer 0.5.5 — launcher
+# nockforge zkminer 0.6.2 — launcher
 #
 # Usage:  NOCKPOOL_WALLET=<your payout address> ./run.sh
 #
@@ -130,7 +130,7 @@ if [ -n "$REAL_LIBCUDA" ]; then
 fi
 
 # ---------------------------------------------------------------- 5. kernel images
-# 0.5.5 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
+# 0.6.2 ships precompiled CUDA kernel images (cubins) for compute capabilities 8.0,
 # 8.6, 8.9, 9.0, 10.0 and 12.0 (Ampere and newer) inside the binary. Nothing is compiled at startup,
 # so libnvrtc -- and with it the whole CUDA toolkit -- is not needed: the NVIDIA
 # driver (libcuda.so.1) is the only NVIDIA library this miner loads. A card whose
@@ -221,8 +221,24 @@ if [ -n "${GPU_LIST// /}" ]; then
   # shellcheck disable=SC2086
   tail -n 0 -F $LOGS &
   TAIL_PID=$!
-  # shellcheck disable=SC2064
-  trap "kill $PIDS $TAIL_PID 2>/dev/null; exit 130" INT TERM
+  # Beim Stopp erst signalisieren, dann WARTEN. Wer hier sofort aussteigt, gilt systemd als
+  # beendet -- und systemd sammelt den Rest der Prozessgruppe mit SIGKILL ein, bevor die Miner
+  # ihre Aufraeumarbeit machen konnten (sie legen unter anderem den GPU-Takt-Offset zurueck).
+  # Gemessen am 20.09.2026: ohne dieses Warten blieb die Karte nach `systemctl stop`
+  # uebertaktet zurueck.
+  still_running() {
+    for p in $PIDS; do kill -0 "$p" 2>/dev/null && return 0; done
+    return 1
+  }
+  shutdown_children() {
+    # shellcheck disable=SC2086
+    kill $PIDS 2>/dev/null
+    i=0
+    while still_running && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+    kill "$TAIL_PID" 2>/dev/null
+    exit 130
+  }
+  trap shutdown_children INT TERM
   # shellcheck disable=SC2086
   wait $PIDS
   kill "$TAIL_PID" 2>/dev/null

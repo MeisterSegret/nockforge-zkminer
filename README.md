@@ -16,10 +16,10 @@ Both are the same file — compare the sha256 against both places before you run
 it.
 
 ```bash
-curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.5.5.tar.gz
-sha256sum nockforge-zkminer-0.5.5.tar.gz     # must match SHA256SUMS on the release and on the site
-tar xzf nockforge-zkminer-0.5.5.tar.gz && cd nockforge-zkminer-0.5.5
-NOCKPOOL_WALLET=<your payout address> NOCKPOOL_RIG=<name> ./run.sh
+curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.6.2.tar.gz
+sha256sum nockforge-zkminer-0.6.2.tar.gz     # must match SHA256SUMS on the release and on the site
+tar xzf nockforge-zkminer-0.6.2.tar.gz && cd nockforge-zkminer-0.6.2
+./nockforge --wallet <your payout address>
 ```
 
 Your payout address is your login: no account, no password, no API token. The
@@ -28,8 +28,11 @@ miner never sees a private key.
 ## What you need
 
 - NVIDIA GPU, compute capability 8.0 … 12.0 (Ampere through Blackwell), under
-  1 GB VRAM. Verified on the RTX 5090: 74.7 M nonces/s at 600 W.
-- NVIDIA driver R580 or newer. No CUDA toolkit.
+  1 GB VRAM. Verified on the RTX 5090: 118.1 M nonces/s at a 540 W board limit,
+  measured with the core clock offset raised to 250 MHz (the shipped default is
+  a more careful 100). Other cards start but are untested.
+- NVIDIA driver R550 or newer (Blackwell: R570 or newer). No CUDA toolkit.
+  Setting the clock offset needs root; without it the miner runs at stock clocks.
 - Linux x86_64, glibc 2.38+ (Ubuntu 24.04). Windows through WSL2.
 - 1 free CPU core, 4 GB host RAM.
 - On a multi-GPU box `./run.sh` starts one miner process per card by default, each

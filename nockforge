@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+#
+# nockforge — der einfache Einstieg.
+#
+#     ./nockforge --wallet <adresse>
+#     ./nockforge --wallet <adresse> --device rig1
+#     ./nockforge --wallet <adresse> --device halle-links --gpus 0,2
+#
+# Ein duenner Mantel um run.sh: er setzt die NOCKPOOL_*-Variablen, die run.sh ohnehin liest,
+# und uebergibt den Rest unveraendert. Wer lieber mit Umgebungsvariablen arbeitet, ruft
+# weiterhin run.sh direkt auf -- beide Wege sind gleichwertig, und ein Schalter gewinnt gegen
+# eine gleichnamige Variable aus der Umgebung.
+#
+# Die Nutzertexte unten sind ENGLISCH, wie README.txt und run.sh. Die Kommentare bleiben
+# deutsch wie im uebrigen Projekt.
+#
+set -u
+export LC_ALL=C
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+die() { printf '\n[nockforge] %s\n\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOT'
+nockforge -- GPU miner for Nockchain (pool: pool.nockforge.tech)
+
+  ./nockforge --wallet <address> [options ...]
+
+Required:
+  --wallet <address>   your nockchain payout address (55 characters, base58).
+                       It is also your login: no account, no password, no API
+                       token. The coins go there. Do not use someone else's.
+
+Common:
+  --device <name>      worker label shown in the pool (default: rig1). On a
+                       multi-GPU box the miner appends "-gpu<i>" per card.
+  --gpus <list>        which cards: "0", "0,2" or "all" (default: all).
+  --pool <host:port>   a different pool endpoint
+                       (default: pool.nockforge.tech:27016).
+  --clock-offset <n>   GPU core clock offset in MHz (default: 100). "off"
+                       leaves the clock alone, "0" resets it to stock. Needs
+                       root; without it the miner says so and runs at stock
+                       clocks. The miner lowers the offset by itself if the
+                       GPU starts computing wrong answers. It stays on the
+                       card until reboot. Measured on one RTX 5090 only -- never
+                       on a 30- or 40-series card. See README.txt
+                       section 5a.
+
+Rare:
+  --solo               mine solo instead of pooled (appends "-solo" to the
+                       worker label).
+  --insecure           turn off certificate verification. Debugging only.
+  -h, --help           this help.
+
+Everything else is in README.txt. Every NOCKPOOL_* and ZKMINER_* variable from
+the environment keeps working; a switch beats a variable of the same name.
+EOT
+}
+
+[ $# -eq 0 ] && { usage; exit 1; }
+
+want() {   # want <schalter> <wert-oder-leer>
+  [ -n "${2:-}" ] || die "$1 needs a value.  Example: $1 <value>
+  Run ./nockforge --help for all options."
+}
+
+# Der Miner selbst wehrt sich zwar gegen Unsinn, aber ein Tippfehler soll hier auffallen und
+# nicht erst als stillschweigend ignorierter Wert eine Zeile im Log.
+clockval() {
+  case "$1" in
+    off|none|no|OFF|None|NO) return 0 ;;
+    -[0-9]*|[0-9]*)
+      case "$1" in *[!-0-9]*) die "--clock-offset takes a number in MHz, \"off\" or 0 -- not \"$1\"." ;; esac
+      [ "${1#-}" -le 1000 ] 2>/dev/null || die "--clock-offset $1 is out of range (-1000 .. 1000)."
+      return 0 ;;
+    *) die "--clock-offset takes a number in MHz, \"off\" or 0 -- not \"$1\"." ;;
+  esac
+}
+
+SOLO=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --wallet|--address|--addr)
+      want "$1" "${2:-}"; export NOCKPOOL_WALLET="$2"; shift 2 ;;
+    --device|--rig|--worker|--name)
+      want "$1" "${2:-}"; export NOCKPOOL_RIG="$2"; shift 2 ;;
+    --gpus|--gpu|--devices)
+      want "$1" "${2:-}"; export NOCKPOOL_GPUS="$2"; shift 2 ;;
+    --pool|--server)
+      want "$1" "${2:-}"; export NOCKPOOL_SERVER="$2"; shift 2 ;;
+    --clock-offset|--clock|--oc)
+      want "$1" "${2:-}"; clockval "$2"; export ZKMINER_CLOCK_OFFSET="$2"; shift 2 ;;
+    --solo)      SOLO=1; shift ;;
+    --insecure)  export NOCKPOOL_INSECURE=1; shift ;;
+    -h|--help)   usage; exit 0 ;;
+    --wallet=*)  export NOCKPOOL_WALLET="${1#*=}"; shift ;;
+    --device=*|--rig=*)   export NOCKPOOL_RIG="${1#*=}"; shift ;;
+    --gpus=*)    export NOCKPOOL_GPUS="${1#*=}"; shift ;;
+    --pool=*|--server=*)  export NOCKPOOL_SERVER="${1#*=}"; shift ;;
+    --clock-offset=*|--clock=*|--oc=*)
+      clockval "${1#*=}"; export ZKMINER_CLOCK_OFFSET="${1#*=}"; shift ;;
+    -*)          die "unknown option: $1
+  Run ./nockforge --help for all options." ;;
+    *)           die "unexpected argument: $1
+  Values belong after their option, e.g. --wallet <address>." ;;
+  esac
+done
+
+if [ -z "${NOCKPOOL_WALLET:-}" ]; then
+  die "--wallet is missing.
+
+  ./nockforge --wallet <your base58 payout address>
+
+  The address is your login at the pool and where your payouts go."
+fi
+
+# --solo wird ueber den Rig-Namen ausgedrueckt, so wie run.sh es erwartet.
+if [ "$SOLO" = "1" ]; then
+  case "${NOCKPOOL_RIG:-rig1}" in
+    *-solo|solo) : ;;
+    *) export NOCKPOOL_RIG="${NOCKPOOL_RIG:-rig1}-solo" ;;
+  esac
+fi
+
+exec bash "$HERE/run.sh"
