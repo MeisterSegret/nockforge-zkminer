@@ -37,14 +37,11 @@ Common:
   --gpus <list>        which cards: "0", "0,2" or "all" (default: all).
   --pool <host:port>   a different pool endpoint
                        (default: pool.nockforge.tech:27016).
-  --clock-offset <n>   GPU core clock offset in MHz (default: 100). "off"
-                       leaves the clock alone, "0" resets it to stock. Needs
-                       root; without it the miner says so and runs at stock
-                       clocks. The miner lowers the offset by itself if the
-                       GPU starts computing wrong answers. It stays on the
-                       card until reboot. Measured on one RTX 5090 only -- never
-                       on a 30- or 40-series card. See README.txt
-                       section 5a.
+  --clock-offset <n>   GPU core clock offset in MHz (default: off) -- the miner
+                       does not touch your clocks unless you ask. Needs root.
+                       It lowers the offset by itself if the GPU starts
+                       computing wrong answers, and it stays on the card until
+                       reboot. "0" resets to stock. See README.txt section 5a.
 
 Rare:
   --solo               mine solo instead of pooled (appends "-solo" to the

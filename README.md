@@ -16,9 +16,9 @@ Both are the same file — compare the sha256 against both places before you run
 it.
 
 ```bash
-curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.6.2.tar.gz
-sha256sum nockforge-zkminer-0.6.2.tar.gz     # must match SHA256SUMS on the release and on the site
-tar xzf nockforge-zkminer-0.6.2.tar.gz && cd nockforge-zkminer-0.6.2
+curl -fsSLO https://github.com/MeisterSegret/nockforge-zkminer/releases/latest/download/nockforge-zkminer-0.6.7.tar.gz
+sha256sum nockforge-zkminer-0.6.7.tar.gz     # must match SHA256SUMS on the release and on the site
+tar xzf nockforge-zkminer-0.6.7.tar.gz && cd nockforge-zkminer-0.6.7
 ./nockforge --wallet <your payout address>
 ```
 

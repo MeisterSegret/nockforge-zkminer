@@ -1,11 +1,11 @@
-nockforge zkminer 0.6.2 -- GPU miner for Nockchain (proof-version 5, Anthropos)
+nockforge zkminer 0.6.7 -- GPU miner for Nockchain (proof-version 5, Anthropos)
 ================================================================================
 Linux x86_64, NVIDIA.
 
 1. QUICK START
 --------------
-    sha256sum nockforge-zkminer-0.6.2.tar.gz     # compare with the site
-    tar xzf nockforge-zkminer-0.6.2.tar.gz && cd nockforge-zkminer-0.6.2
+    sha256sum nockforge-zkminer-0.6.7.tar.gz     # compare with the site
+    tar xzf nockforge-zkminer-0.6.7.tar.gz && cd nockforge-zkminer-0.6.7
     ./nockforge --wallet <your payout address>
 
 That is the whole setup. Two more switches cover almost every rig:
@@ -16,7 +16,7 @@ That is the whole setup. Two more switches cover almost every rig:
     --device <name>    worker label shown in the pool (default: rig1). On a
                        multi-GPU box the miner appends "-gpu<i>" per card.
     --gpus <list>      which cards: "0", "0,2" or "all" (default: all).
-    --clock-offset <n> GPU core clock offset in MHz (default: 100, see 5a)
+    --clock-offset <n> GPU core clock offset in MHz (default: off, see 5a)
     --pool <host:port>, --solo, --insecure, --help   -> ./nockforge --help
 
 `run.sh` is still there and still works. `nockforge` only sets the NOCKPOOL_*
@@ -65,16 +65,18 @@ GPU     NVIDIA, Ampere or newer. Precompiled kernel images ship for compute
         capability 8.0, 8.6, 8.9, 9.0, 10.0 and 12.0 -- Ampere, Ada, Hopper,
         Blackwell; a card outside that list is refused at startup (the grind
         needs the int8 tensor-core instruction of sm_80+, so Turing is out). Measured
-        only on the RTX 5090 (115.8 M nonces/s at a 600 W board limit, 107.2 M
-        at 540 W, sustained); other
-        cards start but are untested and slower.
+        only on the RTX 5090: 124.0 M nonces/s at a 540 W board limit and stock
+        clocks (3-minute runs, 23.09.2026); other cards start but are untested
+        and slower.
 VRAM    Under 1 GB.
-CPU     One free core for the block prover (~30 s per block-class hit).
+CPU     A few free cores for the block prover. A block-class hit is proven in
+        about 0.2 s, most of it on the GPU (measured on an RTX 5090 with a
+        6-core Ryzen 5 7500F); mining pauses for that moment.
 RAM     4 GB host RAM. Under WSL2 that is RAM given to the guest.
 Driver  NVIDIA R550 or newer (Blackwell cards: R570 or newer). No CUDA toolkit
         needed: libcuda.so.1 is the only
         NVIDIA library the miner loads.
-OS      Linux x86_64, glibc 2.38 or newer (Ubuntu 24.04). Windows only through
+OS      Linux x86_64, glibc 2.39 or newer (Ubuntu 24.04). Windows only through
         WSL2 on the Windows NVIDIA driver -- no Linux GPU driver inside WSL.
 
 Several GPUs: one miner process drives one card, and run.sh starts one process
@@ -87,102 +89,57 @@ it to those indices, CUDA_VISIBLE_DEVICES=1 keeps the classic one-card run.
 5. WHAT IT LOOKS LIKE WHEN IT WORKS
 -----------------------------------
     quiver: authenticated, device accepted (linux / <your GPU>)
-    job 1 commit 17b1f84d1213f667 weight 2.083e8 nonces per share, 2.083e13 per block, epoch 0
-    LOCAL 115751234 cand/s (115.75 M nonces/s) | 60s 115.75 M/s | GPU 70 C 600 W | shares 350 accepted 0 rejected | hits 350 | ...
-    HIT: job 3 nonce[0]=13781368888098607096 share 745 bytes -> pool
+    job 1 commit a2a826916ed6d2e2 weight 4.356e8 nonces per share, 4.356e13 per block, epoch 0
+    HIT: job 2 nonce[0]=11788940857570136741 share 745 bytes -> pool
     SHARE ACCEPTED: accepted
+      LOCAL 124.01 M nonces/s since start • 1h ~123.95 M • 24h ~123.95 M • 3m20s
+      WORKER       DEVICE              60 s   CLOCK   FAN   TEMP   POWER        EFF     SHARES  UP
+      rig1         RTX 5090        123.95 M    2430   65%   68 C   540 W    230 k/W     70 / 0  3m20s
 
-The last line is the only proof that you are earning. On the LOCAL line,
-accepted must keep up with hits; REJECTED above 0 is a defect -- stop and
-report it with the log. The cand/s figure is a running average since start;
-"60s" is the trailing minute, which is also what the pool is told.
+SHARE ACCEPTED is the only proof that you are earning. Under SHARES the table
+shows accepted / rejected; a rejected count above 0 is a defect -- stop and
+report it with the log. LOCAL is the average since start (and over the last
+hour and day); the "60 s" column is the trailing minute, which is also what
+the pool is told.
 
 A hit that meets the network target prints HIT BLOCK-CLASS and goes to the
-prover; "BLOCK proof ... -> pool" follows about 30 s later. That is rare and
-normal.
+prover; "BLOCK proof ... -> pool" follows well under a second later. That is
+rare and normal.
 
-5a. THE CLOCK OFFSET (ON BY DEFAULT, AND IT WATCHES ITSELF)
------------------------------------------------------------
-This version raises the GPU core clock by 100 MHz on startup, without being
-asked, and prints one line about it:
+5a. THE CLOCK OFFSET (OFF BY DEFAULT)
+-------------------------------------
+The miner does not change your clocks. It only does so if you ask:
 
-    == clock offset +100 MHz on 0000:01:00.0 (was +0, now +100, SM 2640 MHz) ==
-
-READ THE NEXT TWO PARAGRAPHS BEFORE YOU RUN THIS ON A CARD THAT IS NOT AN
-RTX 5090.
-
-Why: the rate of this miner is almost exactly 0.04475 M nonces/s per MHz of
-core clock on the card we measured. Nothing else in the loop moves it as much.
-
-WHAT WE ACTUALLY MEASURED, AND WHAT WE DID NOT
-On ONE card -- our own RTX 5090, fans at 100 % -- the ladder was green against
-the digest gates up to +400 (127.0 M/s at 2835 MHz), and +450 crashed the card
-hard enough that the machine had to be rebooted. That is the whole of it.
-
-We have never tested a GeForce 30-series or 40-series card, or any other
-model. Published overclocking results for Ampere are far tighter than ours:
-one RTX 3070 was stable at +80 and crashed at +100, and reviewers ran the 3080
-at +25 and the 3090 at +45. Those are game-load results, which is not the same
-thing as computing correctly.
-
-That is why the default is 100 and not more. Our own figure -- **118.1 M
-nonces/s at a 540 W board limit, held over 36 minutes with no rejected shares**
--- was measured on our RTX 5090 with the offset raised to 250, which is what we
-run on our own rigs. The shipped default is deliberately lower, because it has
-to be safe on cards we have never seen. Raise it with "--clock-offset" if you
-know yours, and start from "off" if you do not.
-
-AN OFFSET IS NOT A CLOCK
-On our own card a requested +250 turned into roughly +100 MHz of actual SM
-clock -- the rest was eaten by the power limit. What your card does with an
-offset is decided by GPU Boost from the power limit and the temperature. Do
-not compute an expected rate from the offset; read the SM figure the miner
-prints instead. The 0.04475 per-MHz factor is an RTX 5090 number and does not
-carry to other cards.
-
-THE MINER LOWERS IT BY ITSELF
-An unstable core clock does not necessarily crash -- it computes wrong
-answers, which earn nothing. The miner checks every hit on the CPU before
-anything is sent, so it notices this on its own, roughly once every few
-seconds, without waiting for the pool:
-
-    first disagreement    -> offset drops one step (30 MHz)
-    second disagreement   -> offset goes to 0 for the rest of the run
-    a REJECTED share      -> offset goes to 0 immediately
-
-It never raises the offset by itself. Watch two figures on the LOCAL line:
-"divergence" (our own check caught a GPU error) and "REJECTED" (the pool threw
-work away). Both should stay at 0.
-
-THE OFFSET OUTLIVES THE MINER
-Once set, the offset stays on the card until the machine reboots or the driver
-is reloaded -- stopping the miner does not by itself put it back.
-"--clock-offset 0" resets it. Keep that in mind on a machine you share or rent
-out: the offset is device-wide and the next workload on that card inherits it.
-
-THE REST
-  * The driver only accepts this from root. Without root the miner prints
-    "NOT applied: ... (no permission)" and runs at stock clocks. Nothing
-    breaks; it is simply not faster.
-  * It needs driver R525 or newer. Older drivers have no such call.
-  * Do not use it on a laptop GPU, or on a machine whose GPU other people
-    share: the offset is device-wide and affects every process on that card.
-
-    ./nockforge --wallet <address> --clock-offset off    # do not touch clocks
+    ./nockforge --wallet <address> --clock-offset 100    # +100 MHz core
     ./nockforge --wallet <address> --clock-offset 0      # back to stock
-    ./nockforge --wallet <address> --clock-offset <n>    # your own value
 
-To find your own value, go up in small steps, leave each step running long
-enough to be sure, and stay two steps below the first sign of trouble.
+Earlier versions raised the core clock on startup. That is over, and the
+measurement behind the decision is worth repeating, because it is the opposite
+of what one expects: on an RTX 4080 SUPER another miner does 44 M nonces/s at
+2175 MHz and 139 W, while ours did 43 M nonces/s at 2400 MHz and 168 W. More
+clock cost more power and delivered less work. The road to more nonces per
+watt runs through the kernel, not through the clock.
 
-On a multi-GPU box each process sets the offset on its own card; the card is
-identified by PCI address, not by index, so a remapped CUDA order cannot make
-a process overclock a card it is not using. If you run several miner processes
-on ONE card (CUDA MPS), set --clock-offset off on all but one -- otherwise they
-fight over the same setting.
+If you do set an offset:
 
-The rates quoted in section 4 were measured WITHOUT any offset. They are the
-floor, not the ceiling.
+  * It needs root. Without it the miner says so in one line and runs at stock
+    clocks. Nothing breaks.
+  * An unstable clock does not have to crash -- it can simply compute wrong
+    answers, and wrong answers earn nothing. The miner checks every hit
+    against the CPU before anything is sent and lowers the offset by itself if
+    the GPU disagrees: first disagreement one step down, second switches it
+    off for the run, a rejected share switches it off at once. It never raises
+    it.
+  * It is device-wide and stays on the card until reboot. "--clock-offset 0"
+    resets it. Do not use it on a laptop or on a machine whose GPU other
+    people share.
+  * On our own RTX 5090 the digest gates stayed green up to +400 MHz and +450
+    crashed the card hard enough to need a reboot. That was one card, and it
+    does not carry to yours.
+
+Watch two things: a line starting with "!! HIT REFUSED" (our own check caught a
+GPU error) and the rejected count under SHARES (the pool threw work away). Both
+should stay 0.
 
 6. CONFIGURATION
 ----------------
@@ -192,7 +149,7 @@ floor, not the ceiling.
                                        process per card, see section 4
     NOCKPOOL_SERVER        [pool.nockforge.tech:27016]  host:port of the pool
     NOCKPOOL_INSECURE      [0]         1 disables certificate checking
-    ZKMINER_CLOCK_OFFSET   [100]       GPU core clock offset in MHz; "off"
+    ZKMINER_CLOCK_OFFSET   [off]       GPU core clock offset in MHz; "off"
                                        leaves the clock untouched, 0 resets it
                                        to stock -- see section 5a
     ZKMINER_V5_KERNEL      [miner.jam shipped here]  the Nock prover kernel
